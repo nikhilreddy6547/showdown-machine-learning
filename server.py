@@ -8,7 +8,9 @@ CORS(app)
 def hello_world():
     assert request.method == 'POST'
     data = request.json
-    arr = [1, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     return jsonify(
-        data=arr
+        moves=[.1,.1,.1,.1],
+        zmoves=[.1,.1,.1,.1],
+        switch=[.1,.1,.1,.1,.1,.1],
+        mega=.5,
     )
