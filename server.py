@@ -1,16 +1,75 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+from flask_sqlalchemy import SQLAlchemy
 from pprint import pprint
+import random
+from time import time
+
 app = Flask(__name__)
 CORS(app)
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////tmp/test.db'
+db = SQLAlchemy(app)
 
-@app.route('/', methods=['GET','POST'])
+class Bot(db.Model):
+	id = db.Column(db.Integer, primary_key=True)
+	name = db.Column(db.String(10), unique=True, nullable=False)
+	timestamp = db.Column(db.Integer, nullable=False)
+
+	def __repr__(self):
+		return '<{}: {}>'.format(self.name, self.timestamp)
+
+
+@app.route('/', methods=['POST'])
 def hello_world():
-    assert request.method == 'POST'
-    data = request.json
-    return jsonify(
-        moves=[.1,.1,.1,.1],
-        zmoves=[.1,.1,.1,.1],
-        switch=[.1,.1,.1,.1,.1,.1],
-        mega=.5,
-    )
+	data = request.json
+	pprint(data)
+	if ('new' not in data):
+		bot = Bot.query.filter_by(name=data['name']).first()
+		db.session.delete(bot)
+		db.session.commit()
+		db.session.add(Bot(name=data['name'], timestamp=int(time())))
+		db.session.commit()
+		if('won' in data):
+			pass
+			#process results and such
+		#process data into an acceptable format, then feed it into the NN, then unprocess the output
+		#storage all inputs into a database
+		return jsonify(
+			moves=[.1,.1,.1,.1],
+			zmoves=[.1,.1,.1,.1],
+			switch=[.1,.1,.1,.1,.1,.1],
+			mega=.5,
+		)
+	if (data['new'] == 1):
+		bot_name = ""
+		possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+		for i in range(10):
+			bot_name += random.choice(possible)
+		newBot = Bot(name=bot_name, timestamp=int(time()))
+		db.session.add(newBot)
+		db.session.commit()
+		return jsonify(
+			name=bot_name,
+		)
+	else:
+		#call database and return the ones that are not too old
+		users = Bot.query.all()
+		pprint(users)
+		activeUsers = []
+		currentTime = int(time())
+		bot = Bot.query.filter_by(name=data['name']).first()
+		db.session.delete(bot)
+		db.session.commit()
+		db.session.add(Bot(name=data['name'], timestamp=int(time())))
+		for i in users:
+			if (i.name == data['name']):
+				continue
+			elif (currentTime - i.timestamp > 300):
+				db.session.delete(i)
+			else:
+				activeUsers.append(i.name)
+		db.session.commit()
+		return jsonify(
+			names=activeUsers,
+		)
+
