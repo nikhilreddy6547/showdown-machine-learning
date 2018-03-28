@@ -23,15 +23,15 @@ class Bot(db.Model):
 def hello_world():
 	data = request.json
 	pprint(data)
-	if ('new' not in data):
+	if ('name' in data):#update bot's timestamp to change its activity status
 		bot = Bot.query.filter_by(name=data['name']).first()
 		db.session.delete(bot)
 		db.session.commit()
 		db.session.add(Bot(name=data['name'], timestamp=int(time())))
 		db.session.commit()
-		if('won' in data):
-			pass
-			#process results and such
+	if('won' in data):#game has ended
+		pass#process results and such
+	if ('new' not in data):
 		#process data into an acceptable format, then feed it into the NN, then unprocess the output
 		#storage all inputs into a database
 		return jsonify(
@@ -40,9 +40,9 @@ def hello_world():
 			switch=[.1,.1,.1,.1,.1,.1],
 			mega=.5,
 		)
-	if (data['new'] == 1):
+	if (data['new'] == 1):#bot is requesting a name
 		bot_name = ""
-		possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+		possible = "abcdefghijklmnopqrstuvwxyz0123456789"
 		for i in range(10):
 			bot_name += random.choice(possible)
 		newBot = Bot(name=bot_name, timestamp=int(time()))
@@ -51,16 +51,12 @@ def hello_world():
 		return jsonify(
 			name=bot_name,
 		)
-	else:
-		#call database and return the ones that are not too old
+	else:#bot is requesting the names of other bots
+		#call database and return the ones that are still active
 		users = Bot.query.all()
 		pprint(users)
 		activeUsers = []
 		currentTime = int(time())
-		bot = Bot.query.filter_by(name=data['name']).first()
-		db.session.delete(bot)
-		db.session.commit()
-		db.session.add(Bot(name=data['name'], timestamp=int(time())))
 		for i in users:
 			if (i.name == data['name']):
 				continue
