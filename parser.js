@@ -1,7 +1,7 @@
 //AI code
 //Work in Progress
-//need to do: startGame() and checking who is active, hit the timer ffs
-//Anything goes to reduce load? Or will I have to support the server myself?
+//need to do: Fix bug in which game fails to start when bot is first initialized, checking who is active, hit the timer ffs
+//supporting the server myself
 
 
 /*Copyright (c) 2011-2017 Guangcong Luo and other contributors
@@ -199,8 +199,7 @@ app.__proto__.receive = function (data) {
             delete app.ignore[toUserid(name)];
         }
         setTimeout(function() {
-            $('.mainmenu1')[0].click();
-            $('.mainmenu').find('.cancel').find('button').click();
+            app.send('/utm |tapulele|psychiumz||psyshock,moonblast,focusblast,shadowball|Timid|,,,252,4,252||,0,,,,|||]|kartana|lifeorb||swordsdance,leafblade,sacredsword,smartstrike|Jolly|4,252,,,,252|||||]|zapdos|leftovers|H|thunderbolt,hiddenpowergrass,agility,heatwave|Modest|148,,,252,,108||,0,,,,|||]|keldeo|choicescarf||hydropump,secretsword,icywind,scald|Timid|,,,252,4,252||,0,,,,|||]|charizard|charizarditex||flareblitz,dragonclaw,dragondance,roost|Adamant|96,252,,,,160|||||]|landorustherian|assaultvest||uturn|||||||');
             findBots();
         }, 500);
         break;
@@ -221,6 +220,7 @@ app.__proto__.receive = function (data) {
         if (this.rooms['']) {
             this.rooms[''].updateChallenges($.parseJSON(data.substr(18)));
         }
+        startGame();
         break;
 
     case 'updatesearch':
@@ -230,7 +230,7 @@ app.__proto__.receive = function (data) {
         break;
 
     case 'popup':
-        var maxWidth;
+        /*var maxWidth;
         var type = 'semimodal';
         data = data.substr(7);
         if (data.substr(0, 6) === '|wide|') {
@@ -255,7 +255,7 @@ app.__proto__.receive = function (data) {
                 message: data.replace(/\|\|/g, '\n')
             });
         }
-        if (this.rooms['']) this.rooms[''].resetPending();
+        if (this.rooms['']) this.rooms[''].resetPending();*/
         break;
 
     case 'disconnect':
@@ -323,7 +323,6 @@ app.__proto__.joinRoom = function (id, type, nojoin, opp) {
         } else {
             console.warn('Accepting a challenge');
         }
-        challenge--;
         startGame();
         //more code here
     }
@@ -454,24 +453,30 @@ var static_ip = "http://127.0.0.1:5000";
 var xx;
 var maxGames = 2;
 var challenges = {};
-var challenge = 0;
 function challengeBot(info) {
-    if (info.rooms) {
-        app.send('/challenge ' + info.userid + ', gen7ou');
+    if (info.userid === bot_name || !bot_name) {
+        if (!$('input[name="noanim"]').checked) {
+            $('input[name="noanim"]').click();
+        }
         return;
     }
-    challenge--;
+    if (info.rooms) {
+        if (!app.rooms[""].challengeTo) {
+            app.send('/challenge ' + info.userid + ', gen7ou');
+            return;
+        } else {
+            console.warn("Already challenging someone");
+            setTimeout(challengeBot.bind(this, info), 2000);
+        }
+    }
     console.warn(info.userid + " NOT FOUND!");
     setTimeout(findBots, 1000);
 }
 function startGame() {
-    if ($('.foehint').length + challenge >= maxGames) {
-        return;
+    for (let i in app.rooms[""].challengesFrom) {
+        app.send("/accept " + i);
     }
-    let challengers = $('.challenge').find('button[name="acceptChallenge"]');
-    if (challengers.length) {
-        challenge++;
-        challengers[0].click();
+    if ($('.foehint').length >= maxGames) {
         return;
     }
     let d = new Date();
@@ -483,13 +488,8 @@ function startGame() {
             console.log("ATTEMPTING A CHALLENGE TO " + bot);
             app.send('/cmd userdetails ' + bot);
             challenges[bot] = d;
-            challenge++;
-            if (challenge + $('.foehint').length >= maxGames) {
-                return;
-            }
-        } else if (d - challenges[bot] > 30) {
+        } else if (d - challenges[bot] > 15) {
             app.send('/cancelchallenge ' + bot);
-            challenge--;
             delete challenges[bot];
         }
     }
@@ -590,16 +590,16 @@ BattleRoom.prototype.connect = function() {
     .done(function(msg) {
         let start = performance.now();
         console.warn(start - ping);
-        //console.log(msg);
+        console.log(msg);
         let decision = "/choose ";
-        //this.goToEnd();
+        if (this.request.requestType !== "team") this.goToEnd();
         let prob = 0;
         console.warn(performance.now() - start);
         let moveButtons = this.$('.movemenu').find('button');
         let isZ = this.$('.movebuttons-z').children('button');
         let switchButtons = this.$('.switchmenu').find('button');
-        //console.log(moveButtons);
-        //console.log(switchButtons);
+        console.log(moveButtons);
+        console.log(switchButtons);
         console.warn(performance.now() - start);
         for (let i = 0; i < moveButtons.length - isZ.length; i++) {
             console.log($(moveButtons[i]).is('.disabled'));
@@ -676,9 +676,6 @@ BattleRoom.prototype.connect = function() {
 BattleTooltips._handleClickFor = function () {};
 $('.formatselect').click();
 $('[value="gen7ou"]').click();
-if (!$('input[name="noanim"]').checked) {
-    $('input[name="noanim"]').click();
-}
 $('.mainmenu1')[0].click();
 var bot_name = "";
 var other_bots = [];
@@ -698,8 +695,9 @@ if ($('input[name="username"]').length) {
         console.error("Unable to connect to the server!");
     });
 }
+var findOtherBots = null;
 function findBots() {
-    let findOtherBots = setInterval(function() {
+    if(!findOtherBots) findOtherBots = setInterval(function() {
         $.ajax({
             method: "POST",
             url: static_ip,
@@ -712,6 +710,7 @@ function findBots() {
             if (other_bots.length) {
                 console.log(other_bots);
                 clearInterval(findOtherBots);
+                findOtherBots = null;
                 startGame();
             }
         }).fail(function(msg) {
@@ -719,4 +718,4 @@ function findBots() {
         });
     }, 1000);
 }
-console.log = function () {};
+//console.log = function () {};

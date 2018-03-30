@@ -8,6 +8,7 @@ from time import time
 app = Flask(__name__)
 CORS(app)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////tmp/test.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
 class Bot(db.Model):
@@ -54,7 +55,7 @@ def hello_world():
 	else:#bot is requesting the names of other bots
 		#call database and return the ones that are still active
 		users = Bot.query.all()
-		pprint(users)
+		#pprint(users)
 		activeUsers = []
 		currentTime = int(time())
 		for i in users:
